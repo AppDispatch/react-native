@@ -69,6 +69,11 @@ export interface HealthEvent {
   message?: string;
   count: number;
   flagStates?: Record<string, unknown>;
+  stackTrace?: string;
+  errorName?: string;
+  componentStack?: string;
+  isFatal?: boolean;
+  tags?: Record<string, string>;
 }
 
 export interface HealthMetricsPayload {

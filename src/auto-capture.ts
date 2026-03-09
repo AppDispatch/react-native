@@ -14,12 +14,20 @@ declare const ErrorUtils:
     }
   | undefined;
 
+export interface CapturedError {
+  message: string;
+  errorName: string;
+  stackTrace: string | undefined;
+  componentStack: string | undefined;
+  isFatal: boolean;
+}
+
 /**
  * Install a global JS error handler that chains with the existing one.
  * Returns a teardown function that restores the original handler.
  */
 export function installErrorHandler(
-  onError: (message: string, isFatal: boolean) => void,
+  onError: (error: CapturedError) => void,
 ): (() => void) | null {
   if (typeof ErrorUtils === "undefined") return null;
 
@@ -28,7 +36,20 @@ export function installErrorHandler(
   ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
     try {
       const message = error?.message || error?.toString() || "Unknown error";
-      onError(message, isFatal ?? false);
+      const errorName = error?.name || "Error";
+      const stackTrace = error?.stack;
+      // React Native attaches componentStack on some error types
+      const componentStack = (error as any)?.componentStack as
+        | string
+        | undefined;
+
+      onError({
+        message,
+        errorName,
+        stackTrace,
+        componentStack,
+        isFatal: isFatal ?? false,
+      });
     } catch {
       // Never let our handler break the app
     }

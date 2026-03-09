@@ -75,11 +75,16 @@ export class HealthReporter {
     this.started = true;
 
     if (this.options.autoCaptureErrors !== false) {
-      this.teardownError = installErrorHandler((message, isFatal) => {
-        const type = isFatal ? "crash" : "js_error";
+      this.teardownError = installErrorHandler((captured) => {
+        const type = captured.isFatal ? "crash" : "js_error";
         const flagStates = snapshotFlagStates(this.flagStateProvider);
-        this.buffer.add(type, undefined, message, 1, flagStates);
-        if (isFatal) {
+        this.buffer.add(type, undefined, captured.message, 1, flagStates, {
+          stackTrace: captured.stackTrace,
+          errorName: captured.errorName,
+          componentStack: captured.componentStack,
+          isFatal: captured.isFatal,
+        });
+        if (captured.isFatal) {
           this.flush();
         } else {
           this.checkBufferSize();
@@ -134,9 +139,20 @@ export class HealthReporter {
   }
 
   /** Record an error manually (goes into js_error bucket). */
-  recordError(message: string, count: number = 1): void {
+  recordError(
+    messageOrError: string | Error,
+    options?: { tags?: Record<string, string>; count?: number },
+  ): void {
     const flagStates = snapshotFlagStates(this.flagStateProvider);
-    this.buffer.add("js_error", undefined, message, count, flagStates);
+    const isError = messageOrError instanceof Error;
+    const message = isError ? messageOrError.message : messageOrError;
+    const count = options?.count ?? 1;
+
+    this.buffer.add("js_error", undefined, message, count, flagStates, {
+      errorName: isError ? messageOrError.name : undefined,
+      stackTrace: isError ? messageOrError.stack : undefined,
+      tags: options?.tags,
+    });
     this.checkBufferSize();
   }
 
