@@ -29,9 +29,15 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
   private lastKnownFlagStates: Record<string, unknown> = {};
   private lastContext: EvaluationContext | null = null;
   private readonly options: AppDispatchOptions;
+  private _readyResolve!: () => void;
+  /** Resolves when the first flag fetch completes. */
+  readonly ready: Promise<void>;
 
   constructor(options: AppDispatchOptions) {
     this.options = options;
+    this.ready = new Promise((resolve) => {
+      this._readyResolve = resolve;
+    });
   }
 
   /** Returns a snapshot of the last known flag states (used by health reporter). */
@@ -41,6 +47,7 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
 
   async initialize(): Promise<void> {
     await this.fetchFlags();
+    this._readyResolve();
 
     const interval = this.options.flagPollIntervalMs ?? 30_000;
     if (interval > 0) {
@@ -221,6 +228,17 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
         next.set(flag.key, flag);
       }
       this.flags = next;
+
+      // Pre-populate flag states with default evaluations so health events
+      // (especially app_launch) have flag_states even before components render.
+      for (const [key, flag] of next) {
+        if (!(key in this.lastKnownFlagStates)) {
+          const result = evaluateFlag(flag, this.lastContext ?? {});
+          if (result.value !== undefined) {
+            this.lastKnownFlagStates[key] = result.value;
+          }
+        }
+      }
     } catch (err) {
       console.warn("[AppDispatch] Failed to fetch flags:", err);
     }

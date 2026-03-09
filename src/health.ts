@@ -3,6 +3,7 @@ declare const require: (id: string) => any;
 declare const __DEV__: boolean | undefined;
 
 import type { AppDispatchOptions, HealthMetricsPayload } from "./types";
+import type { DispatchProvider } from "./provider";
 import { EventBuffer } from "./buffer";
 import { snapshotFlagStates } from "./correlation";
 import { installErrorHandler, installAppLaunchTracker } from "./auto-capture";
@@ -45,10 +46,16 @@ export class HealthReporter {
   private teardownError: (() => void) | null = null;
   private teardownLaunch: (() => void) | null = null;
   private flagStateProvider: (() => Record<string, unknown>) | null = null;
+  private provider: DispatchProvider | null = null;
   private started = false;
 
   constructor(options: AppDispatchOptions) {
     this.options = options;
+  }
+
+  /** Set the provider reference (for awaiting readiness). Called internally by AppDispatch.init(). */
+  setProvider(provider: DispatchProvider): void {
+    this.provider = provider;
   }
 
   /**
@@ -82,9 +89,14 @@ export class HealthReporter {
 
     if (this.options.trackAppLaunches !== false) {
       this.teardownLaunch = installAppLaunchTracker(() => {
-        const flagStates = snapshotFlagStates(this.flagStateProvider);
-        this.buffer.add("app_launch", undefined, undefined, 1, flagStates);
-        this.flush();
+        // Wait for the flag provider to be ready so flag_states are populated
+        // on app_launch events — required for per-variation error rate math.
+        const ready = this.provider?.ready ?? Promise.resolve();
+        ready.then(() => {
+          const flagStates = snapshotFlagStates(this.flagStateProvider);
+          this.buffer.add("app_launch", undefined, undefined, 1, flagStates);
+          this.flush();
+        });
       });
     }
 
@@ -152,22 +164,24 @@ export class HealthReporter {
 
     try {
       const url = new URL("/v1/ota/health-metrics", this.options.baseUrl);
+      const body = JSON.stringify(payload);
+
+      if (__DEV__) {
+        console.log(`[AppDispatch] Flushing ${events.length} health event(s):`, JSON.stringify(payload, null, 2));
+      }
+
       const res = await fetch(url.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body,
       });
       if (!res.ok) {
-        let body = "";
+        let resBody = "";
         try {
-          body = await res.text();
+          resBody = await res.text();
         } catch {}
         console.warn(
-          `[AppDispatch] Health metrics failed: ${res.status} ${body}`,
-        );
-      } else if (__DEV__) {
-        console.log(
-          `[AppDispatch] Flushed ${events.length} health event(s)`,
+          `[AppDispatch] Health metrics failed: ${res.status} ${resBody}`,
         );
       }
     } catch (err) {

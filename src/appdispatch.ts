@@ -6,6 +6,8 @@ import { HealthReporter } from "./health";
 let _instance: AppDispatchInstance | null = null;
 
 export interface AppDispatchInstance {
+  /** The options passed to init(). */
+  options: AppDispatchOptions;
   /** The OpenFeature provider (for advanced use). */
   provider: DispatchProvider;
   /** The health reporter (for recording custom events/errors). */
@@ -27,6 +29,7 @@ const _noopHealth = {
 } as unknown as HealthReporter;
 
 const _noopInstance: AppDispatchInstance = {
+  options: {} as AppDispatchOptions,
   provider: {} as DispatchProvider,
   health: _noopHealth,
   start() {},
@@ -56,12 +59,14 @@ export const AppDispatch = {
     const health = new HealthReporter(options);
 
     // Wire flag-health correlation internally
+    health.setProvider(provider);
     health.setFlagStateProvider(() => provider.getFlagStates());
 
     // Register with OpenFeature
     OpenFeature.setProvider(provider);
 
     _instance = {
+      options,
       provider,
       health,
       start: () => health.start(),
