@@ -41,7 +41,7 @@ export function useOTAUpdates() {
           await Updates.reloadAsync();
         }
       } catch (err: any) {
-        console.warn("[AppDispatch]", err.message);
+        console.warn("[AppDispatch] Update check failed:", err.message);
       }
     }
 

@@ -192,9 +192,7 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        console.warn(
-          `[AppDispatch] Failed to report evaluations: ${res.status}${res.status === 401 ? " (missing or invalid apiKey)" : ""}`,
-        );
+        console.warn(`[AppDispatch] Failed to report evaluations: ${res.status}`);
       }
     } catch (err) {
       console.warn("[AppDispatch] Failed to report evaluations:", err);
@@ -217,10 +215,7 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
       }
 
       const res = await fetch(url.toString(), { headers });
-      if (!res.ok) {
-        console.warn(`[AppDispatch] Failed to fetch flags: ${res.status}`);
-        return;
-      }
+      if (!res.ok) return;
 
       const payload: FlagPayload = await res.json();
       const next = new Map<string, FlagDefinition>();

@@ -1,7 +1,5 @@
 // Metro provides these at runtime; declare for TS since we don't ship @types/node
 declare const require: (id: string) => any;
-declare const __DEV__: boolean | undefined;
-
 import type { AppDispatchOptions, HealthMetricsPayload } from "./types";
 import type { DispatchProvider } from "./provider";
 import { EventBuffer } from "./buffer";
@@ -182,23 +180,13 @@ export class HealthReporter {
       const url = new URL("/v1/ota/health-metrics", this.options.baseUrl);
       const body = JSON.stringify(payload);
 
-      if (__DEV__) {
-        console.log(`[AppDispatch] Flushing ${events.length} health event(s):`, JSON.stringify(payload, null, 2));
-      }
-
       const res = await fetch(url.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
       });
       if (!res.ok) {
-        let resBody = "";
-        try {
-          resBody = await res.text();
-        } catch {}
-        console.warn(
-          `[AppDispatch] Health metrics failed: ${res.status} ${resBody}`,
-        );
+        console.warn(`[AppDispatch] Health metrics failed: ${res.status}`);
       }
     } catch (err) {
       console.warn("[AppDispatch] Health metrics failed:", err);

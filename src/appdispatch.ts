@@ -78,12 +78,7 @@ export const AppDispatch = {
 
   /** Get the current AppDispatch instance. Warns and no-ops if not initialized. */
   get instance(): AppDispatchInstance {
-    if (!_instance) {
-      console.warn(
-        "[AppDispatch] Not initialized. Call AppDispatch.init() before using AppDispatch.instance.",
-      );
-      return _noopInstance;
-    }
+    if (!_instance) return _noopInstance;
     return _instance;
   },
 };
