@@ -48,7 +48,6 @@ export class HealthReporter {
   private started = false;
   private startupTimestamp: number | null = null;
   private hasRecordedColdStart = false;
-  private evaluatedFlagKeys: Set<string> = new Set();
 
   constructor(options: AppDispatchOptions) {
     this.options = options;
@@ -178,16 +177,6 @@ export class HealthReporter {
       tags: { duration_ms: String(Math.round(durationMs)) },
     });
     this.checkBufferSize();
-  }
-
-  /**
-   * Record flag evaluation timing (first eval per unique flag key per session only).
-   * Subsequent evaluations of the same flag key are ignored to avoid volume explosion.
-   */
-  recordFlagEvalTiming(flagKey: string, durationMs: number): void {
-    if (this.evaluatedFlagKeys.has(flagKey)) return;
-    this.evaluatedFlagKeys.add(flagKey);
-    this.recordPerformanceSample("flag_eval", durationMs);
   }
 
   /** Force flush buffered events to the server. */
