@@ -62,6 +62,11 @@ export const AppDispatch = {
     health.setProvider(provider);
     health.setFlagStateProvider(() => provider.getFlagStates());
 
+    // Wire flag evaluation timing auto-capture
+    provider.setEvalTimingHook((flagKey, durationMs) => {
+      health.recordFlagEvalTiming(flagKey, durationMs);
+    });
+
     // Register with OpenFeature
     OpenFeature.setProvider(provider);
 

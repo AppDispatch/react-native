@@ -30,6 +30,7 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
   private lastContext: EvaluationContext | null = null;
   private readonly options: AppDispatchOptions;
   private _readyResolve!: () => void;
+  private evalTimingHook: ((flagKey: string, durationMs: number) => void) | null = null;
   /** Resolves when the first flag fetch completes. */
   readonly ready: Promise<void>;
 
@@ -38,6 +39,11 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
     this.ready = new Promise((resolve) => {
       this._readyResolve = resolve;
     });
+  }
+
+  /** Set a hook to capture flag evaluation timing. Called internally by AppDispatch.init(). */
+  setEvalTimingHook(hook: (flagKey: string, durationMs: number) => void): void {
+    this.evalTimingHook = hook;
   }
 
   /** Returns a snapshot of the last known flag states (used by health reporter). */
@@ -119,8 +125,14 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
       };
     }
 
+    const evalStart = Date.now();
     const result = evaluateFlag(flag, context);
+    const evalDuration = Date.now() - evalStart;
     const value = (result.value as T) ?? defaultValue;
+
+    if (this.evalTimingHook) {
+      this.evalTimingHook(flagKey, evalDuration);
+    }
 
     this.trackEvaluation(flagKey, value, context);
 

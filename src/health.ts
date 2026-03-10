@@ -46,6 +46,9 @@ export class HealthReporter {
   private flagStateProvider: (() => Record<string, unknown>) | null = null;
   private provider: DispatchProvider | null = null;
   private started = false;
+  private startupTimestamp: number | null = null;
+  private hasRecordedColdStart = false;
+  private evaluatedFlagKeys: Set<string> = new Set();
 
   constructor(options: AppDispatchOptions) {
     this.options = options;
@@ -71,6 +74,7 @@ export class HealthReporter {
   start(): void {
     if (this.started) return;
     this.started = true;
+    this.startupTimestamp = Date.now();
 
     if (this.options.autoCaptureErrors !== false) {
       this.teardownError = installErrorHandler((captured) => {
@@ -92,12 +96,23 @@ export class HealthReporter {
 
     if (this.options.trackAppLaunches !== false) {
       this.teardownLaunch = installAppLaunchTracker(() => {
+        const launchTimestamp = Date.now();
         // Wait for the flag provider to be ready so flag_states are populated
         // on app_launch events — required for per-variation error rate math.
         const ready = this.provider?.ready ?? Promise.resolve();
         ready.then(() => {
           const flagStates = snapshotFlagStates(this.flagStateProvider);
           this.buffer.add("app_launch", undefined, undefined, 1, flagStates);
+
+          // Capture startup timing: first launch = cold start, subsequent = warm start
+          const duration = Date.now() - launchTimestamp;
+          if (!this.hasRecordedColdStart) {
+            this.hasRecordedColdStart = true;
+            this.recordPerformanceSample("startup_cold", duration);
+          } else {
+            this.recordPerformanceSample("startup_warm", duration);
+          }
+
           this.flush();
         });
       });
@@ -152,6 +167,27 @@ export class HealthReporter {
       tags: options?.tags,
     });
     this.checkBufferSize();
+  }
+
+  /** Record a performance timing sample. */
+  recordPerformanceSample(
+    metric: "startup_cold" | "startup_warm" | "update_download" | "flag_eval",
+    durationMs: number,
+  ): void {
+    this.buffer.add("perf_sample", metric, undefined, 1, undefined, {
+      tags: { duration_ms: String(Math.round(durationMs)) },
+    });
+    this.checkBufferSize();
+  }
+
+  /**
+   * Record flag evaluation timing (first eval per unique flag key per session only).
+   * Subsequent evaluations of the same flag key are ignored to avoid volume explosion.
+   */
+  recordFlagEvalTiming(flagKey: string, durationMs: number): void {
+    if (this.evaluatedFlagKeys.has(flagKey)) return;
+    this.evaluatedFlagKeys.add(flagKey);
+    this.recordPerformanceSample("flag_eval", durationMs);
   }
 
   /** Force flush buffered events to the server. */
