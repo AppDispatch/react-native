@@ -4,6 +4,7 @@ declare const __DEV__: boolean | undefined;
 
 import { useEffect } from "react";
 import { getDeviceId } from "./device-id";
+import { AppDispatch } from "./appdispatch";
 
 /**
  * Hook that checks for OTA updates on mount.
@@ -32,8 +33,16 @@ export function useOTAUpdates() {
         const check = await Updates.checkForUpdateAsync();
         if (!check.isAvailable) return;
 
+        const downloadStart = Date.now();
         const result = await Updates.fetchUpdateAsync();
         if (!result.isNew) return;
+
+        // Record successful download duration as a performance sample
+        const downloadDuration = Date.now() - downloadStart;
+        AppDispatch.instance.health.recordPerformanceSample(
+          "update_download",
+          downloadDuration,
+        );
 
         // Critical updates reload immediately; others apply on next launch
         const manifest = (check.manifest ?? result.manifest) as any;

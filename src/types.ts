@@ -61,7 +61,7 @@ export interface FlagPayload {
 
 // ── Health types ──
 
-export type HealthEventType = "js_error" | "crash" | "custom" | "app_launch";
+export type HealthEventType = "js_error" | "crash" | "custom" | "app_launch" | "perf_sample";
 
 export interface HealthEvent {
   type: HealthEventType;
