@@ -67,10 +67,11 @@ export class SSEClient {
       this.es.addEventListener("patch", (event: any) => {
         try {
           const data = JSON.parse(event.data);
+          const flag = data.flag;
           this.options.onPatch(data.key, {
-            value: data.value,
-            variant: data.variant,
-            reason: data.reason,
+            value: flag.value,
+            variant: flag.variant,
+            reason: flag.reason,
           });
         } catch (err) {
           if (this.options.onError) this.options.onError(err);
