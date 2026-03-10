@@ -7,6 +7,8 @@ import type {
   ResolutionDetails,
 } from "@openfeature/core";
 import { ErrorCode } from "@openfeature/core";
+import { OpenFeatureEventEmitter } from "@openfeature/web-sdk";
+import type { ProviderEmittableEvents } from "@openfeature/web-sdk";
 import type {
   AppDispatchOptions,
   EvaluatedFlag,
@@ -20,6 +22,7 @@ import { getDeviceId } from "./device-id";
 export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
   readonly metadata: ProviderMetadata = { name: "appdispatch" };
   readonly runsOn = "client" as const;
+  readonly events = new OpenFeatureEventEmitter();
 
   private flags: Map<string, EvaluatedFlag> = new Map();
   private sseClient: SSEClient | null = null;
@@ -184,16 +187,19 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
       onPut: (flags: CachedFlags) => {
         this.populateFlagsFromRecord(flags);
         persistFlags(flags);
+        this.emitConfigChanged(Object.keys(flags));
       },
       onPatch: (key: string, flag: EvaluatedFlag) => {
         this.flags.set(key, flag);
         this.lastKnownFlagStates[key] = flag.value;
         persistFlags(this.flagsToRecord());
+        this.emitConfigChanged([key]);
       },
       onDelete: (key: string) => {
         this.flags.delete(key);
         delete this.lastKnownFlagStates[key];
         persistFlags(this.flagsToRecord());
+        this.emitConfigChanged([key]);
       },
       onError: (err: any) => {
         console.warn("[AppDispatch] SSE error:", err);
@@ -224,5 +230,12 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
       record[key] = flag;
     }
     return record;
+  }
+
+  /** Notify OpenFeature that flag values changed so React hooks re-render. */
+  private emitConfigChanged(flagsChanged: string[]): void {
+    this.events.emit("PROVIDER_CONFIGURATION_CHANGED" as ProviderEmittableEvents, {
+      flagsChanged,
+    });
   }
 }
