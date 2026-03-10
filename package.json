@@ -1,6 +1,6 @@
 {
   "name": "@appdispatch/react-native",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "AppDispatch SDK for React Native — feature flags, health monitoring, and OTA updates",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -34,7 +34,8 @@
   "license": "MIT",
   "dependencies": {
     "@openfeature/core": "^1.6.0",
-    "@openfeature/react-sdk": "^1.2.1"
+    "@openfeature/react-sdk": "^1.2.1",
+    "react-native-sse": "^1.2.1"
   },
   "peerDependencies": {
     "expo-updates": ">=0.20.0",
