@@ -17,10 +17,6 @@ export interface AppDispatchOptions {
   updateId?: string | null;
   /** Runtime version string — auto-detected from expo-updates if omitted */
   runtimeVersion?: string;
-  /** Polling interval in ms for refreshing flag definitions (default: 30000) */
-  flagPollIntervalMs?: number;
-  /** Flush interval in ms for sending flag evaluation reports (default: 60000) */
-  flagFlushIntervalMs?: number;
   /** Flush interval in ms for health metrics (default: 30000). Set to 0 to disable. */
   healthFlushIntervalMs?: number;
   /** Whether to auto-capture JS errors via ErrorUtils (default: true) */
@@ -31,32 +27,26 @@ export interface AppDispatchOptions {
   maxBufferSize?: number;
 }
 
-// ── Flag types ──
+// ── Evaluated flag types (server-side evaluation) ──
 
-export interface RuleDefinition {
-  priority: number;
-  ruleType: string;
-  variantValue: unknown;
-  ruleConfig: Record<string, unknown>;
-}
-
-export interface VariationDefinition {
-  id: number;
+export interface EvaluatedFlag {
   value: unknown;
-  name: string | null;
+  variant?: string;
+  reason: string;
 }
 
-export interface FlagDefinition {
-  key: string;
-  flagType: string;
-  defaultValue: unknown;
-  enabled: boolean;
-  rules: RuleDefinition[];
-  variations: VariationDefinition[];
+export interface BulkEvalResponse {
+  flags: Record<string, EvaluatedFlag>;
 }
 
-export interface FlagPayload {
-  flags: FlagDefinition[];
+export interface BulkEvalRequest {
+  projectSlug: string;
+  channel?: string;
+  deviceId: string;
+  targetingKey?: string;
+  platform?: string;
+  runtimeVersion?: string;
+  attributes?: Record<string, unknown>;
 }
 
 // ── Health types ──
