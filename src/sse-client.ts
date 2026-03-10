@@ -11,6 +11,9 @@ export interface SSEClientOptions {
   channel?: string;
   deviceId: string;
   targetingKey?: string;
+  updateId?: string | null;
+  runtimeVersion?: string;
+  platform?: string;
   apiKey?: string;
   onPut: (flags: CachedFlags) => void;
   onPatch: (key: string, flag: EvaluatedFlag) => void;
@@ -45,6 +48,12 @@ export class SSEClient {
       url.searchParams.set("deviceId", this.options.deviceId);
       if (this.options.targetingKey)
         url.searchParams.set("targetingKey", this.options.targetingKey);
+      if (this.options.updateId)
+        url.searchParams.set("updateId", this.options.updateId);
+      if (this.options.runtimeVersion)
+        url.searchParams.set("runtimeVersion", this.options.runtimeVersion);
+      if (this.options.platform)
+        url.searchParams.set("platform", this.options.platform);
 
       const headers: Record<string, string> = {};
       if (this.options.apiKey)

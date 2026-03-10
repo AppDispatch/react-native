@@ -19,6 +19,25 @@ import { loadCachedFlags, persistFlags } from "./cache";
 import { SSEClient } from "./sse-client";
 import { getDeviceId } from "./device-id";
 
+// Metro provides require at runtime; declare for TS since we don't ship @types/node
+declare const require: (id: string) => any;
+
+/** Auto-detect expo-updates info if available. */
+function getExpoUpdatesInfo(): {
+  updateId: string | null;
+  runtimeVersion: string;
+} {
+  try {
+    const Updates = require("expo-updates");
+    return {
+      updateId: Updates?.updateId ?? null,
+      runtimeVersion: Updates?.runtimeVersion ?? "unknown",
+    };
+  } catch {
+    return { updateId: null, runtimeVersion: "unknown" };
+  }
+}
+
 export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
   readonly metadata: ProviderMetadata = { name: "appdispatch" };
   readonly runsOn = "client" as const;
@@ -29,6 +48,8 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
   private lastKnownFlagStates: Record<string, unknown> = {};
   private readonly options: AppDispatchOptions;
   private deviceId: string = "";
+  private updateId: string | null = null;
+  private runtimeVersion: string = "unknown";
   private _readyResolve!: () => void;
   /** Resolves when cached flags are loaded (or initial bulk eval completes). */
   readonly ready: Promise<void>;
@@ -48,6 +69,12 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
   async initialize(): Promise<void> {
     // Resolve device ID (may be async via AsyncStorage)
     this.deviceId = await getDeviceId(this.options.deviceId);
+
+    // Resolve update/runtime info (explicit options override auto-detection)
+    const autoDetected = getExpoUpdatesInfo();
+    this.updateId = this.options.updateId ?? autoDetected.updateId;
+    this.runtimeVersion =
+      this.options.runtimeVersion ?? autoDetected.runtimeVersion;
 
     // Load cached flags from AsyncStorage
     const cached = await loadCachedFlags();
@@ -158,7 +185,10 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
           deviceId: this.deviceId,
           targetingKey: "",
           platform: this.options.platform,
-          runtimeVersion: this.options.runtimeVersion,
+          runtimeVersion: this.runtimeVersion,
+          attributes: this.updateId
+            ? { update_id: this.updateId }
+            : undefined,
         }),
       });
 
@@ -183,6 +213,9 @@ export class DispatchProvider implements CommonProvider<ClientProviderStatus> {
       channel: this.options.channel,
       deviceId: this.deviceId,
       targetingKey: undefined,
+      updateId: this.updateId,
+      runtimeVersion: this.runtimeVersion,
+      platform: this.options.platform,
       apiKey: this.options.apiKey,
       onPut: (flags: CachedFlags) => {
         this.populateFlagsFromRecord(flags);
