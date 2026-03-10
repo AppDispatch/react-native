@@ -1,6 +1,6 @@
 {
   "name": "@appdispatch/react-native",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "AppDispatch SDK for React Native — feature flags, health monitoring, and OTA updates",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
